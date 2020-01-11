@@ -1,4 +1,5 @@
 from typing import List
+from typing import Optional
 from typing import Union
 
 from clikit.api.io import IO
@@ -19,6 +20,7 @@ from poetry.utils.extras import get_extra_package_names
 from poetry.utils.helpers import canonicalize_name
 
 from .base_installer import BaseInstaller
+from .executor import Executor
 from .pip_installer import PipInstaller
 
 
@@ -31,6 +33,7 @@ class Installer:
         locker,  # type: Locker
         pool,  # type: Pool
         installed=None,  # type: (Union[InstalledRepository, None])
+        executor=None,  # type: (Optional[Executor])
     ):
         self._io = io
         self._env = env
@@ -50,15 +53,19 @@ class Installer:
 
         self._extras = []
 
-        self._installer = self._get_installer()
+        if executor is None:
+            executor = Executor(self._env, self._io)
+
+        self._executor = executor
+
         if installed is None:
             installed = self._get_installed()
 
         self._installed_repository = installed
 
     @property
-    def installer(self):
-        return self._installer
+    def executor(self):
+        return self._executor
 
     def run(self):
         # Force update if there is no lock file present
@@ -282,8 +289,7 @@ class Installer:
             )
 
         self._io.write_line("")
-        for op in ops:
-            self._execute(op)
+        self._executor.execute(ops)
 
     def _write_lock_file(self, repo):  # type: (Repository) -> None
         if self._update and self._write_lock:
@@ -292,94 +298,6 @@ class Installer:
             if updated_lock:
                 self._io.write_line("")
                 self._io.write_line("<info>Writing lock file</>")
-
-    def _execute(self, operation):  # type: (Operation) -> None
-        """
-        Execute a given operation.
-        """
-        method = operation.job_type
-
-        getattr(self, "_execute_{}".format(method))(operation)
-
-    def _execute_install(self, operation):  # type: (Install) -> None
-        if operation.skipped:
-            if self.is_verbose() and (self._execute_operations or self.is_dry_run()):
-                self._io.write_line(
-                    "  - Skipping <c1>{}</c1> (<c2>{}</c2>) {}".format(
-                        operation.package.pretty_name,
-                        operation.package.full_pretty_version,
-                        operation.skip_reason,
-                    )
-                )
-
-            return
-
-        if self._execute_operations or self.is_dry_run():
-            self._io.write_line(
-                "  - Installing <c1>{}</c1> (<c2>{}</c2>)".format(
-                    operation.package.pretty_name, operation.package.full_pretty_version
-                )
-            )
-
-        if not self._execute_operations:
-            return
-
-        self._installer.install(operation.package)
-
-    def _execute_update(self, operation):  # type: (Update) -> None
-        source = operation.initial_package
-        target = operation.target_package
-
-        if operation.skipped:
-            if self.is_verbose() and (self._execute_operations or self.is_dry_run()):
-                self._io.write_line(
-                    "  - Skipping <c1>{}</c1> (<c2>{}</c2>) {}".format(
-                        target.pretty_name,
-                        target.full_pretty_version,
-                        operation.skip_reason,
-                    )
-                )
-
-            return
-
-        if self._execute_operations or self.is_dry_run():
-            self._io.write_line(
-                "  - Updating <c1>{}</c1> (<c2>{}</c2> -> <c2>{}</c2>)".format(
-                    target.pretty_name,
-                    source.full_pretty_version,
-                    target.full_pretty_version,
-                )
-            )
-
-        if not self._execute_operations:
-            return
-
-        self._installer.update(source, target)
-
-    def _execute_uninstall(self, operation):  # type: (Uninstall) -> None
-        if operation.skipped:
-            if self.is_verbose() and (self._execute_operations or self.is_dry_run()):
-                self._io.write_line(
-                    "  - Not removing <c1>{}</c1> (<c2>{}</c2>) {}".format(
-                        operation.package.pretty_name,
-                        operation.package.full_pretty_version,
-                        operation.skip_reason,
-                    )
-                )
-
-            return
-
-        if self._execute_operations or self.is_dry_run():
-            self._io.write_line(
-                "  - Removing <c1>{}</c1> (<c2>{}</c2>)".format(
-                    operation.package.pretty_name, operation.package.full_pretty_version
-                )
-            )
-
-        if not self._execute_operations:
-            return
-
-        self._installer.remove(operation.package)
 
     def _populate_local_repo(self, local_repo, ops):
         for op in ops:
