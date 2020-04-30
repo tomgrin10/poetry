@@ -76,7 +76,7 @@ class PyPiRepository(RemoteRepository):
         self._name = "PyPI"
 
     @property
-    def session(self):
+    def session(self):  # type: () -> requests.Session
         return self._session
 
     def find_packages(

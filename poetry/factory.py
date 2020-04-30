@@ -139,6 +139,7 @@ class Factory(BaseFactory):
         password_manager = PasswordManager(auth_config)
         name = source["name"]
         url = source["url"]
+        disable_ssl = source.get("disable-ssl", False)
         credentials = password_manager.get_http_auth(name)
         if credentials:
             auth = Auth(url, credentials["username"], credentials["password"])
@@ -148,6 +149,7 @@ class Factory(BaseFactory):
         return LegacyRepository(
             name,
             url,
+            disable_ssl=disable_ssl,
             auth=auth,
             cert=get_cert(auth_config, name),
             client_cert=get_client_cert(auth_config, name),
