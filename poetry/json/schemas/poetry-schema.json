@@ -516,6 +516,10 @@
                     "description": "The url of the repository",
                     "format": "uri"
                 },
+                "disable-ssl": {
+                    "type": "boolean",
+                    "description": "Disable ssl verification when using the repository."
+                },
                 "default": {
                     "type": "boolean",
                     "description": "Make this repository the default (disable PyPI)"
