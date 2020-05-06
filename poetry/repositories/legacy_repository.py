@@ -162,14 +162,22 @@ class Page:
 
 class LegacyRepository(PyPiRepository):
     def __init__(
-        self, name, url, auth=None, disable_cache=False, cert=None, client_cert=None
-    ):  # type: (str, str, Optional[Auth], bool, Optional[Path], Optional[Path]) -> None
+        self,
+        name,
+        url,
+        disable_ssl=False,
+        auth=None,
+        disable_cache=False,
+        cert=None,
+        client_cert=None,
+    ):  # type: (str, str, bool, Optional[Auth], bool, Optional[Path], Optional[Path]) -> None
         if name == "pypi":
             raise ValueError("The name [pypi] is reserved for repositories")
 
         self._packages = []
         self._name = name
         self._url = url.rstrip("/")
+        self._disable_ssl = disable_ssl
         self._auth = auth
         self._client_cert = client_cert
         self._cert = cert
@@ -195,7 +203,9 @@ class LegacyRepository(PyPiRepository):
         if not url_parts.username and self._auth:
             self._session.auth = self._auth
 
-        if self._cert:
+        if self._disable_ssl:
+            self._session.verify = False
+        elif self._cert:
             self._session.verify = str(self._cert)
 
         if self._client_cert:
